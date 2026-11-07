@@ -13,11 +13,10 @@ app = FastAPI(title = 'Ticket Triage')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=['http://localhost:5173'],
+    allow_methods=['*'],
+    allow_headers=['*']
 )
-
 class TicketCreate(BaseModel):
   title: str
   description: str
@@ -72,10 +71,15 @@ def create_ticket(payload:TicketCreate):
     return ticket
 
 @app.get("/tickets", response_model=list[TicketOut])
-def list_tickets(status: Optional[str]=None):
-    if status is None:
-        return tickets
-    return [t for t in tickets if t.status == status]
+def list_tickets(status: Optional[str] = None, search: Optional[str] = None):
+    result = tickets
+    if status is not None:
+        result = [t for t in result if t.status == status]
+    if search:
+        q = search.lower()
+        result = [t for t in result
+                  if q in t.title.lower() or q in t.description.lower()]
+    return result
 
 @app.post("/tickets/{ticket_id}/triage", response_model=TicketOut)
 def triage_ticket(ticket_id: int):

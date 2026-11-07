@@ -33,6 +33,10 @@ The API runs at `http://127.0.0.1:8000`. Interactive API docs are at `http://127
 
 ## 2. Set up the frontend
 
+```bash
+npm create vite@latest frontend
+```
+
 In a second terminal:
 
 ```bash
@@ -53,11 +57,11 @@ The frontend calls the API at `http://127.0.0.1:8000` (set in `frontend/src/App.
 
 ## API reference
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `POST` | `/tickets` | Create a ticket. Body: `{ "title": str, "description": str, "created_by": int }` |
-| `GET` | `/tickets` | List tickets. Optional query: `?status=open\|needs_review\|assigned` |
-| `POST` | `/tickets/{id}/triage` | Run triage and store the suggestions; status becomes `needs_review` |
+| Method | Path                    | Description                                                                                       |
+| ------ | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `POST` | `/tickets`              | Create a ticket. Body: `{ "title": str, "description": str, "created_by": int }`                  |
+| `GET`  | `/tickets`              | List tickets. Optional query: `?status=open\|needs_review\|assigned`                              |
+| `POST` | `/tickets/{id}/triage`  | Run triage and store the suggestions; status becomes `needs_review`                               |
 | `POST` | `/tickets/{id}/approve` | Accept the suggestions; status becomes `assigned`. Returns 400 if the ticket has not been triaged |
 
 Example:
@@ -72,8 +76,8 @@ curl -X POST http://127.0.0.1:8000/tickets \
 
 Run these from `frontend/`:
 
-| Command | What it does |
-| --- | --- |
-| `npm run build` | Production build into `frontend/dist` |
-| `npm run preview` | Serve the production build locally |
-| `npm run lint` | Run ESLint |
+| Command           | What it does                          |
+| ----------------- | ------------------------------------- |
+| `npm run build`   | Production build into `frontend/dist` |
+| `npm run preview` | Serve the production build locally    |
+| `npm run lint`    | Run ESLint                            |
