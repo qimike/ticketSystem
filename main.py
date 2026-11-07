@@ -8,12 +8,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from agent import triage_graph
+from langgraph.types import Command
 
 app = FastAPI(title = 'Ticket Triage')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173'],
+    allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
     allow_methods=['*'],
     allow_headers=['*']
 )
@@ -30,31 +32,34 @@ class TicketOut(TicketCreate):
   suggested_category: Optional[str] = None
   suggested_priority: Optional[str] = None
   ai_summary: Optional[str]=None
+  final_category: Optional[str] = None
+  final_priority: Optional[str] = None
 
 tickets = []
 next_id = 1
 
-def fake_Triage(title: str, description: str) -> dict:
-  text = title + " " + description
-
-  if "login" in text or "password" in text or "sso" in text:
-     category = "account_access"
-  elif "payment" in text or "charge" in text or "refund" in text:
-     category = "billing"
-  elif "crash" in text or "error" in text or "500" in text:
-     category = "bug"
-  else:
-     category = 'general'
-
-  if "urgent" in text or "down" in text or "cannot" in text or "500" in text:
-        priority = "high"
-  elif "question" in text or "how to" in text:
-        priority = "low"
-  else:
-        priority = "medium"
-
-  summary = f"User reports '{title}', auto-classified as {category}"
-  return {"category": category, "priority": priority, "summary": summary}
+# Old version, now lives in agent.py as fake_triage
+# def fake_Triage(title: str, description: str) -> dict:
+#   text = title + " " + description
+#
+#   if "login" in text or "password" in text or "sso" in text:
+#      category = "account_access"
+#   elif "payment" in text or "charge" in text or "refund" in text:
+#      category = "billing"
+#   elif "crash" in text or "error" in text or "500" in text:
+#      category = "bug"
+#   else:
+#      category = 'general'
+#
+#   if "urgent" in text or "down" in text or "cannot" in text or "500" in text:
+#         priority = "high"
+#   elif "question" in text or "how to" in text:
+#         priority = "low"
+#   else:
+#         priority = "medium"
+#
+#   summary = f"User reports '{title}', auto-classified as {category}"
+#   return {"category": category, "priority": priority, "summary": summary}
 
 def find_ticket(ticket_id: int) -> TicketOut:
     for t in tickets:
@@ -84,11 +89,23 @@ def list_tickets(status: Optional[str] = None, search: Optional[str] = None):
 @app.post("/tickets/{ticket_id}/triage", response_model=TicketOut)
 def triage_ticket(ticket_id: int):
     ticket = find_ticket(ticket_id)
-    result = fake_Triage(ticket.title, ticket.description)
 
-    ticket.suggested_category = result['category']
-    ticket.suggested_priority = result['priority']
-    ticket.ai_summary = result['summary']
+    #result from agent
+    config = {"configurable": {"thread_id": str(ticket_id)}}
+
+    # Original code
+    # result = fake_Triage(ticket.title, ticket.description)
+    # ticket.suggested_category = result['category']
+    # ticket.suggested_priority = result['priority']
+    # ticket.ai_summary = result['summary']
+    
+    result = triage_graph.invoke(
+        {"title": ticket.title, "description": ticket.description},
+        config)
+
+    ticket.suggested_category = result['suggested_category']
+    ticket.suggested_priority = result['suggested_priority']
+    ticket.ai_summary = result['ai_summary']
     ticket.status = 'needs_review'
     return ticket
 
@@ -98,8 +115,15 @@ def approve_ticket(ticket_id: int):
     if ticket.status != "needs_review":
         raise HTTPException(status_code=400, detail="Ticket has not been triaged yet")
 
-    ticket.category = ticket.suggested_category
-    ticket.priority = ticket.suggested_priority
+    #result from agent
+    config = {"configurable": {"thread_id": str(ticket_id)}}
+    result = triage_graph.invoke(Command(resume=True), config) 
+
+    # original code
+    # ticket.category = ticket.suggested_category
+    ticket.category = result["final_category"]
+    # ticket.priority = ticket.suggested_priority
+    ticket.priority = result["final_priority"]
     ticket.status = "assigned"
     return ticket
 

@@ -81,3 +81,7 @@ Run these from `frontend/`:
 | `npm run build`   | Production build into `frontend/dist` |
 | `npm run preview` | Serve the production build locally    |
 | `npm run lint`    | Run ESLint                            |
+
+START → classify（LLM classify + summary）→ human_review → save → END
+↓ reject
+END（not save）
